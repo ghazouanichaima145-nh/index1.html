@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <title>ForêtGuard PFE - ISET Jendouba</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:linear-gradient(135deg,#228B22,#0d4f1a);color:white;font-family:'Segoe UI',Arial,sans-serif;padding:20px;min-height:100vh}
+    .header{h1{text-align:center;margin-bottom:30px;font-size:2.5em;text-shadow:2px 2px 4px rgba(0,0,0,0.5)}}
+    .gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin:20px 0}
+    .gauge{background:linear-gradient(145deg,#2d5a2d,#1a3a1a);border-radius:20px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.5);text-align:center}
+    .gauge h3{font-size:1.2em;margin-bottom:10px;color:#90EE90}
+    .value{font-size:3em;font-weight:bold;margin:10px 0}
+    .unit{font-size:1.1em;color:#ddd}
+    .status{position:absolute;top:10px;right:10px;font-size:1.5em}
+    .alert{animation:pulse 1s infinite}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+    .charts{margin-top:30px;display:grid;gap:20px}
+    iframe{width:100%;height:300px;border:none;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,0.5)}
+    @media(max-width:768px){.gauges{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🌲 ForêtGuard - Surveillance Incendie</h1>
+    <p>ISET Jendouba - PFE ESP32 2026</p>
+  </div>
+
+  <div class="gauges" id="gauges">
+    <div class="gauge">
+      <span class="status" id="tempStatus">🌡️</span>
+      <h3>Température</h3>
+      <div class="value" id="temp">--</div>
+      <div class="unit">°C</div>
+    </div>
+    <div class="gauge">
+      <span class="status" id="humStatus">💧</span>
+      <h3>Humidité</h3>
+      <div class="value" id="hum">--</div>
+      <div class="unit">%</div>
+    </div>
+    <div class="gauge">
+      <span class="status" id="fumeeStatus">💨</span>
+      <h3>Fumée</h3>
+      <div class="value" id="fumee">--</div>
+      <div class="unit">ppm</div>
+    </div>
+    <div class="gauge">
+      <span class="status alert" id="risqueStatus">⚠️</span>
+      <h3>Risque Incendie</h3>
+      <div class="value" id="risque">MOYEN</div>
+      <div class="unit">Niveau</div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <iframe src="https://thingspeak.com/channels/1234567/charts/1?api_key=DEF456&width=100%"></iframe>
+    <iframe src="https://thingspeak.com/channels/1234567/charts/3?api_key=DEF456&width=100%"></iframe>
+  </div>
+
+  <script>
+    const CHANNEL_ID = '3289448';
+    const READ_API = '8QQ3G7HPMFQZR666';  // Ta Read API Key !
+
+    function updateDashboard() {
+      fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API}&results=1`)
+        .then(r=>r.json())
+        .then(data=>{
+          if(data.feeds.length>0){
+            let f = data.feeds[0];
+            let temp = parseFloat(f.field1);
+            let hum = parseFloat(f.field2);
+            let fumee = parseInt(f.field3);
+            
+            // Update gauges
+            document.getElementById('temp').textContent = temp || '--';
+            document.getElementById('hum').textContent = hum || '--';
+            document.getElementById('fumee').textContent = fumee || '--';
+            
+            // Statuts couleur
+            document.getElementById('tempStatus').style.color = temp>50 ? '#ff4757' : '#2ed573';
+            document.getElementById('humStatus').style.color = hum<20 ? '#ff4757' : '#2ed573';
+            document.getElementById('fumeeStatus').style.color = fumee>800 ? '#ff4757' : '#ffa502';
+            document.getElementById('risque').textContent = (temp>50||hum<20||fumee>800) ? 'CRITIQUE' : 'MOYEN';
+            document.getElementById('risqueStatus').style.color = (temp>50||hum<20||fumee>800) ? '#ff4757' : '#ffa502';
+            
+            document.title = `ForêtGuard | T:${temp}°C F:${fumee}ppm | ${risque}`;
+          }
+        })
+        .catch(e=>console.log('API error:',e));
+    }
+
+    // Refresh 30s
+    updateDashboard();
+    setInterval(updateDashboard, 30000);
+  </script>
+</body>
+</html>
